@@ -1,4 +1,4 @@
-module test(reset, flick, clk, out, state, countUp, max, min);
+module test(reset, flick, clk, out, state, countUp, max, min, nextOutput);
 input clk, reset, flick;
 output reg [15:0] out;
 
@@ -18,21 +18,33 @@ parameter init = 4'b0000,
           s6 = 4'b0110,
           s3_flick = 4'b0111,
           s5_flick = 4'b1000,
-          kickback5 = 16'b0000_0000_0001_1111,
-          kickback10 = 16'b0000_0011_1111_1111;
+          kickbackPoint5 = 16'b0000_0000_0001_1111,
+          kickbackPoint10 = 16'b0000_0011_1111_1111;
           
  output reg [3:0] state = init;
  reg [3:0] nextState = init;
+ output reg [15:0] nextOutput;
+ initial nextOutput <= 16'b0;
 
 //reset block
 always @(posedge clk) begin
-    if (reset ==1'b0) state <= init;
-    else state <=nextState;
+    if (reset ==1'b0) begin
+        state <= init;
+        out <= 0;
+    end
+    else begin
+        state <=nextState;
+        out <= nextOutput;
+    end
 end
+
 //update output
-always @(posedge clk) begin
-    if(countUp==1'b1) out <=out*2+1;
-    else out <=out/2;
+always @(countUp, state, out) begin
+    if (state == init) nextOutput <= 0;
+    else begin
+        if(countUp==1'b1) nextOutput <=out*2+1;
+        else nextOutput <=out/2;
+    end
 end
 
 //update state
@@ -52,7 +64,7 @@ always @(out, flick) begin
             else nextState <= state;
         end
         s3: begin
-            if ((out == kickback5 || out == kickback10) && flick == 1) nextState <= s3_flick;
+            if ((out == kickbackPoint5 || out == kickbackPoint10) && flick == 1) nextState <= s3_flick;
             else if (out == max) nextState <= s4;
             else nextState <= state;
         end
@@ -65,7 +77,7 @@ always @(out, flick) begin
             else nextState <= state;
         end
         s5: begin
-            if ((out == kickback5 || out == kickback10) && flick == 1) nextState <= s5_flick;
+            if ((out == kickbackPoint5 || out == kickbackPoint10) && flick == 1) nextState <= s5_flick;
             else if (out == max) nextState <= s6;
             else nextState <= state;
         end
@@ -83,8 +95,8 @@ always @(out, flick) begin
 end
 //update min,max
 
-always @(state) begin
-    case (state)
+always @(nextState) begin
+    case (nextState)
         init: begin
             min<=0;
             max<=0;
